@@ -1,0 +1,187 @@
+package vn.iotstar.techstore.controllers.admin;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.IntStream;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import jakarta.servlet.http.HttpSession;
+import vn.iotstar.techstore.entities.User;
+import vn.iotstar.techstore.services.UserService;
+import vn.iotstar.techstore.utils.PasswordUtil;
+
+@Controller
+@RequestMapping("/admin/users")
+public class UserController {
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+
+    @GetMapping
+    public String list() {
+        return "redirect:/admin/users/searchpaginated";
+    }
+
+    @GetMapping("/searchpaginated")
+    public String search(ModelMap model,
+                         @RequestParam(name = "keyword", required = false) String keyword,
+                         @RequestParam(name = "page", required = false) Optional<Integer> page,
+                         @RequestParam(name = "size", required = false) Optional<Integer> size) {
+        int currentPage = page.filter(value -> value > 0).orElse(1);
+        int pageSize = size.filter(value -> value == 3 || value == 5 || value == 10 || value == 15 || value == 20)
+                .orElse(3);
+        Pageable pageable = PageRequest.of(currentPage - 1, pageSize, Sort.by("username"));
+        String value = keyword == null ? "" : keyword.trim();
+        Page<User> userPage = value.isBlank()
+                ? userService.findAll(pageable)
+                : userService.search(value, pageable);
+
+        int totalPages = userPage.getTotalPages();
+        if (totalPages > 0 && currentPage > totalPages) {
+            pageable = PageRequest.of(totalPages - 1, pageSize, Sort.by("username"));
+            userPage = value.isBlank()
+                    ? userService.findAll(pageable)
+                    : userService.search(value, pageable);
+            currentPage = totalPages;
+        }
+
+        int from = totalPages == 0 ? 0 : Math.max(1, currentPage - 2);
+        int to = totalPages == 0 ? 0 : Math.min(totalPages, currentPage + 2);
+        List<Integer> pageNumbers = IntStream.rangeClosed(from, to).boxed().toList();
+
+        model.addAttribute("userPage", userPage);
+        model.addAttribute("pageNumbers", pageNumbers);
+        model.addAttribute("keyword", value);
+        model.addAttribute("pageSize", pageSize);
+        model.addAttribute("currentPage", currentPage);
+        model.addAttribute("user", new User());
+        return "admin/user/list";
+    }
+
+    @GetMapping("/add")
+    public String addForm(ModelMap model) {
+        model.addAttribute("user", new User());
+        return "admin/user/form";
+    }
+
+    @PostMapping("/add")
+    public String add(@RequestParam String username,
+                      @RequestParam String password,
+                      @RequestParam String email,
+                      @RequestParam(required = false) String fullname,
+                      @RequestParam(required = false) String phone,
+                      @RequestParam Integer roleId,
+                      @RequestParam(defaultValue = "false") boolean active,
+                      ModelMap model,
+                      RedirectAttributes redirectAttributes) {
+        if (username.isBlank() || password.length() < 8 || email.isBlank()) {
+            model.addAttribute("error", "Tên đăng nhập, mật khẩu (tối thiểu 8 ký tự) và email là bắt buộc.");
+            model.addAttribute("user", new User());
+            return "admin/user/form";
+        }
+        if (userService.existsByUsername(username) || userService.existsByEmail(email)) {
+            model.addAttribute("error", "Username hoặc email đã tồn tại.");
+            model.addAttribute("user", new User());
+            return "admin/user/form";
+        }
+        User user = new User();
+        user.setUsername(username.trim());
+        user.setPassword(PasswordUtil.hash(password));
+        user.setEmail(email.trim());
+        user.setFullname(fullname);
+        user.setPhone(phone);
+        user.setRoleId(roleId == 1 ? 1 : 2);
+        user.setActive(active);
+        userService.save(user);
+        redirectAttributes.addFlashAttribute("success", "Thêm người dùng thành công.");
+        return "redirect:/admin/users/searchpaginated";
+    }
+
+    @GetMapping("/edit/{id}")
+    public String editForm(@PathVariable Integer id, ModelMap model) {
+        User user = userService.findById(id);
+        if (user == null) {
+            model.addAttribute("error", "Không tìm thấy người dùng.");
+            return "admin/user/list";
+        }
+        model.addAttribute("user", user);
+        return "admin/user/form";
+    }
+
+    @PostMapping("/edit/{id}")
+    public String edit(@PathVariable Integer id,
+                       @RequestParam String username,
+                       @RequestParam(required = false) String password,
+                       @RequestParam String email,
+                       @RequestParam(required = false) String fullname,
+                       @RequestParam(required = false) String phone,
+                       @RequestParam Integer roleId,
+                       @RequestParam(defaultValue = "false") boolean active,
+                       HttpSession session,
+                       ModelMap model,
+                       RedirectAttributes redirectAttributes) {
+        User user = userService.findById(id);
+        if (user == null) {
+            return "redirect:/admin/users/searchpaginated";
+        }
+        Integer sessionUserId = (Integer) session.getAttribute("userId");
+        if (sessionUserId != null && sessionUserId.equals(id) && roleId != 1) {
+            model.addAttribute("error", "Không thể bỏ quyền ADMIN của tài khoản đang đăng nhập.");
+            model.addAttribute("user", user);
+            return "admin/user/form";
+        }
+        if (password != null && !password.isBlank() && password.length() < 8) {
+            model.addAttribute("error", "Mật khẩu mới phải có ít nhất 8 ký tự.");
+            model.addAttribute("user", user);
+            return "admin/user/form";
+        }
+        user.setUsername(username.trim());
+        user.setEmail(email.trim());
+        user.setFullname(fullname);
+        user.setPhone(phone);
+        user.setRoleId(roleId == 1 ? 1 : 2);
+        user.setActive(active);
+        if (password != null && !password.isBlank()) {
+            user.setPassword(PasswordUtil.hash(password));
+        }
+        userService.save(user);
+        redirectAttributes.addFlashAttribute("success", "Cập nhật người dùng thành công.");
+        return "redirect:/admin/users/searchpaginated";
+    }
+
+    @PostMapping("/delete/{id}")
+    public String delete(@PathVariable Integer id,
+                         HttpSession session,
+                         RedirectAttributes redirectAttributes) {
+        Integer sessionUserId = (Integer) session.getAttribute("userId");
+        if (sessionUserId != null && sessionUserId.equals(id)) {
+            redirectAttributes.addFlashAttribute("error", "Không thể xóa tài khoản đang đăng nhập.");
+            return "redirect:/admin/users/searchpaginated";
+        }
+        User user = userService.findById(id);
+        if (user == null) {
+            redirectAttributes.addFlashAttribute("error", "Không tìm thấy người dùng.");
+        } else if (user.getRoleId() != null && user.getRoleId() == 1
+                && userService.countAdmins() <= 1) {
+            redirectAttributes.addFlashAttribute("error", "Không thể xóa tài khoản ADMIN cuối cùng.");
+        } else {
+            userService.deleteById(id);
+            redirectAttributes.addFlashAttribute("success", "Xóa người dùng thành công.");
+        }
+        return "redirect:/admin/users/searchpaginated";
+    }
+}
