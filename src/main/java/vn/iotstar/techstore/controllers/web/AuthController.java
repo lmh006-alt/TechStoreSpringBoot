@@ -88,6 +88,17 @@ public class AuthController {
             model.addAttribute("alert", "Địa chỉ email không hợp lệ.");
             return "web/register";
         }
+        if (username.length() > 255 || email.length() > 255 || password.length() > 255
+                || (fullname != null && fullname.length() > 255)) {
+            model.addAttribute("alert", "Tên đăng nhập, email, mật khẩu và họ tên không được vượt quá 255 ký tự.");
+            return "web/register";
+        }
+        if (phone != null && (phone.length() > 20 || (!phone.isBlank()
+                && (!phone.matches("\\+?[0-9][0-9 .()-]*")
+                    || !phone.replaceAll("[^0-9]", "").matches("[0-9]{7,15}"))))) {
+            model.addAttribute("alert", "Số điện thoại cần có 7–15 chữ số và tối đa 20 ký tự.");
+            return "web/register";
+        }
         if (userService.existsByUsername(username)) {
             model.addAttribute("alert", "Tên đăng nhập đã tồn tại.");
             return "web/register";

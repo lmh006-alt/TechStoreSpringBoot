@@ -9,6 +9,9 @@ import org.springframework.web.filter.CharacterEncodingFilter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.http.HttpServletResponse;
 import vn.iotstar.techstore.filters.AdminAuthorizationInterceptor;
 import vn.iotstar.techstore.filters.CsrfFilter;
 
@@ -32,6 +35,20 @@ public class WebConfiguration implements WebMvcConfigurer {
         filter.setEncoding("UTF-8");
         filter.setForceEncoding(true);
         return filter;
+    }
+
+    @Bean
+    public FilterRegistrationBean<Filter> errorDispatcherEncodingFilter() {
+        Filter filter = (request, response, chain) -> {
+            ((HttpServletResponse) response).setCharacterEncoding("UTF-8");
+            chain.doFilter(request, response);
+        };
+        FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>(filter);
+        registration.setName("errorDispatcherEncodingFilter");
+        registration.addUrlPatterns("/*");
+        registration.setDispatcherTypes(DispatcherType.ERROR);
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return registration;
     }
 
     @Bean

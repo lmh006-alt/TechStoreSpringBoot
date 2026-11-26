@@ -11,8 +11,8 @@ import org.apache.catalina.LifecycleEvent;
 import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.WebResourceRoot;
 import org.springframework.core.io.Resource;
-import org.springframework.util.ResourceUtils;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.util.ResourceUtils;
 
 public class JSPStaticResourceConfigurer implements LifecycleListener {
     private final Context context;
@@ -33,7 +33,7 @@ public class JSPStaticResourceConfigurer implements LifecycleListener {
             if (ResourceUtils.isFileURL(url)) {
                 context.getResources().createWebResourceSet(
                         WebResourceRoot.ResourceSetType.RESOURCE_JAR,
-                        "/", url, "/META-INF");
+                        "/", url, "/");
                 return;
             }
             if (ResourceUtils.isJarURL(url)) {

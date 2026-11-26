@@ -21,14 +21,17 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import jakarta.validation.Valid;
 import vn.iotstar.techstore.entities.Category;
 import vn.iotstar.techstore.services.CategoryService;
+import vn.iotstar.techstore.services.CategoryImageService;
 
 @Controller
 @RequestMapping("/admin/categories")
 public class CategoryController {
     private final CategoryService categoryService;
+    private final CategoryImageService categoryImageService;
 
-    public CategoryController(CategoryService categoryService) {
+    public CategoryController(CategoryService categoryService, CategoryImageService categoryImageService) {
         this.categoryService = categoryService;
+        this.categoryImageService = categoryImageService;
     }
 
     @GetMapping
@@ -60,11 +63,15 @@ public class CategoryController {
             currentPage = totalPages;
         }
 
-        int from = totalPages == 0 ? 0 : Math.max(1, currentPage - 2);
+        int from = totalPages == 0 ? 1 : Math.max(1, currentPage - 2);
         int to = totalPages == 0 ? 0 : Math.min(totalPages, currentPage + 2);
         List<Integer> pageNumbers = IntStream.rangeClosed(from, to).boxed().toList();
 
         model.addAttribute("categoryPage", categoryPage);
+        model.addAttribute("availableCategoryImageIds", categoryPage.getContent().stream()
+                .filter(category -> categoryImageService.exists(category.getImages()))
+                .map(Category::getCategoryId)
+                .collect(java.util.stream.Collectors.toSet()));
         model.addAttribute("pageNumbers", pageNumbers);
         model.addAttribute("name", keyword);
         model.addAttribute("pageSize", pageSize);
@@ -99,11 +106,13 @@ public class CategoryController {
     }
 
     @GetMapping("/edit/{id}")
-    public String editForm(@PathVariable Integer id, ModelMap model) {
+    public String editForm(@PathVariable Integer id,
+                           ModelMap model,
+                           RedirectAttributes redirectAttributes) {
         Category category = categoryService.findById(id);
         if (category == null) {
-            model.addAttribute("error", "Không tìm thấy danh mục.");
-            return "admin/category/list";
+            redirectAttributes.addFlashAttribute("error", "Không tìm thấy danh mục.");
+            return "redirect:/admin/categories/searchpaginated";
         }
         model.addAttribute("category", category);
         return "admin/category/form";
@@ -117,9 +126,17 @@ public class CategoryController {
                        ModelMap model) {
         Category existing = categoryService.findById(id);
         if (existing == null) {
+            redirectAttributes.addFlashAttribute("error", "Không tìm thấy danh mục.");
             return "redirect:/admin/categories/searchpaginated";
         }
         if (bindingResult.hasErrors()) {
+            model.addAttribute("category", category);
+            return "admin/category/form";
+        }
+        String categoryName = category.getCategoryName().trim();
+        if (!existing.getCategoryName().equalsIgnoreCase(categoryName)
+                && categoryService.existsByName(categoryName)) {
+            model.addAttribute("error", "Tên danh mục đã được sử dụng.");
             model.addAttribute("category", category);
             return "admin/category/form";
         }

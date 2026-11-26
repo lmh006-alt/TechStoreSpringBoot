@@ -8,17 +8,18 @@
 <main class="auth-box card">
     <a class="logo" href="${pageContext.request.contextPath}/">Tech<span>Store</span></a>
     <h1>Đăng nhập</h1>
+<p class="subtitle">Chào mừng bạn quay trở lại</p>
     <c:if test="${not empty success}"><div class="alert alert-success"><c:out value="${success}"/></div></c:if>
     <c:if test="${not empty alert}"><div class="error" role="alert"><c:out value="${alert}"/></div></c:if>
-    <form action="${pageContext.request.contextPath}/login" method="post">
+<form data-validate action="${pageContext.request.contextPath}/login" method="post">
         <input type="hidden" name="csrfToken" value="${sessionScope.csrfToken}">
         <div class="field">
             <label class="form-label" for="username">Tên đăng nhập</label>
-            <input class="form-control" id="username" name="username" maxlength="255" required>
+        <input class="form-control" id="username" name="username" maxlength="255" autocomplete="username" data-not-blank required>
         </div>
         <div class="field">
             <label class="form-label" for="password">Mật khẩu</label>
-            <input class="form-control" id="password" name="password" type="password" required>
+        <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" data-not-blank required>
         </div>
         <button class="btn btn-primary w-100" type="submit">Đăng nhập</button>
     </form>

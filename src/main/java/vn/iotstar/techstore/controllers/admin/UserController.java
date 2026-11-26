@@ -59,7 +59,7 @@ public class UserController {
             currentPage = totalPages;
         }
 
-        int from = totalPages == 0 ? 0 : Math.max(1, currentPage - 2);
+        int from = totalPages == 0 ? 1 : Math.max(1, currentPage - 2);
         int to = totalPages == 0 ? 0 : Math.min(totalPages, currentPage + 2);
         List<Integer> pageNumbers = IntStream.rangeClosed(from, to).boxed().toList();
 
@@ -88,17 +88,18 @@ public class UserController {
                       @RequestParam(defaultValue = "false") boolean active,
                       ModelMap model,
                       RedirectAttributes redirectAttributes) {
-        if (username.isBlank() || password.length() < 8 || email.isBlank()) {
-            model.addAttribute("error", "Tên đăng nhập, mật khẩu (tối thiểu 8 ký tự) và email là bắt buộc.");
-            model.addAttribute("user", new User());
+        User user = createFormUser(username, email, fullname, phone, roleId, active);
+        String validationError = validateUserFields(username, password, email, fullname, phone, true);
+        if (validationError != null) {
+            model.addAttribute("error", validationError);
+            model.addAttribute("user", user);
             return "admin/user/form";
         }
         if (userService.existsByUsername(username) || userService.existsByEmail(email)) {
             model.addAttribute("error", "Username hoặc email đã tồn tại.");
-            model.addAttribute("user", new User());
+            model.addAttribute("user", user);
             return "admin/user/form";
         }
-        User user = new User();
         user.setUsername(username.trim());
         user.setPassword(PasswordUtil.hash(password));
         user.setEmail(email.trim());
@@ -112,11 +113,13 @@ public class UserController {
     }
 
     @GetMapping("/edit/{id}")
-    public String editForm(@PathVariable Integer id, ModelMap model) {
+    public String editForm(@PathVariable Integer id,
+                           ModelMap model,
+                           RedirectAttributes redirectAttributes) {
         User user = userService.findById(id);
         if (user == null) {
-            model.addAttribute("error", "Không tìm thấy người dùng.");
-            return "admin/user/list";
+            redirectAttributes.addFlashAttribute("error", "Không tìm thấy người dùng.");
+            return "redirect:/admin/users/searchpaginated";
         }
         model.addAttribute("user", user);
         return "admin/user/form";
@@ -136,6 +139,7 @@ public class UserController {
                        RedirectAttributes redirectAttributes) {
         User user = userService.findById(id);
         if (user == null) {
+            redirectAttributes.addFlashAttribute("error", "Không tìm thấy người dùng.");
             return "redirect:/admin/users/searchpaginated";
         }
         Integer sessionUserId = (Integer) session.getAttribute("userId");
@@ -144,8 +148,24 @@ public class UserController {
             model.addAttribute("user", user);
             return "admin/user/form";
         }
-        if (password != null && !password.isBlank() && password.length() < 8) {
-            model.addAttribute("error", "Mật khẩu mới phải có ít nhất 8 ký tự.");
+        String validationError = validateUserFields(username, password, email, fullname, phone, false);
+        if (validationError != null) {
+            model.addAttribute("error", validationError);
+            model.addAttribute("user", createFormUser(id, username, email, fullname, phone, roleId, active));
+            return "admin/user/form";
+        }
+        if (!user.getUsername().equalsIgnoreCase(username.trim()) && userService.existsByUsername(username)) {
+            model.addAttribute("error", "Username đã được sử dụng.");
+            model.addAttribute("user", createFormUser(id, username, email, fullname, phone, roleId, active));
+            return "admin/user/form";
+        }
+        if (!user.getEmail().equalsIgnoreCase(email.trim()) && userService.existsByEmail(email)) {
+            model.addAttribute("error", "Email đã được sử dụng.");
+            model.addAttribute("user", createFormUser(id, username, email, fullname, phone, roleId, active));
+            return "admin/user/form";
+        }
+        if (roleId != 1 && roleId != 2) {
+            model.addAttribute("error", "Vai trò người dùng không hợp lệ.");
             model.addAttribute("user", user);
             return "admin/user/form";
         }
@@ -183,5 +203,49 @@ public class UserController {
             redirectAttributes.addFlashAttribute("success", "Xóa người dùng thành công.");
         }
         return "redirect:/admin/users/searchpaginated";
+    }
+
+    private User createFormUser(String username, String email, String fullname, String phone,
+                                Integer roleId, boolean active) {
+        return createFormUser(null, username, email, fullname, phone, roleId, active);
+    }
+
+    private User createFormUser(Integer id, String username, String email, String fullname, String phone,
+                                Integer roleId, boolean active) {
+        User user = new User();
+        user.setId(id);
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setFullname(fullname);
+        user.setPhone(phone);
+        user.setRoleId(roleId);
+        user.setActive(active);
+        return user;
+    }
+
+    private String validateUserFields(String username, String password, String email,
+                                      String fullname, String phone, boolean requirePassword) {
+        if (username == null || username.isBlank() || username.length() > 255) {
+            return "Username là bắt buộc và không được vượt quá 255 ký tự.";
+        }
+        if (email == null || email.isBlank() || email.length() > 255
+                || !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            return "Email là bắt buộc, tối đa 255 ký tự và phải đúng định dạng.";
+        }
+        if (fullname != null && fullname.length() > 255) {
+            return "Họ tên không được vượt quá 255 ký tự.";
+        }
+        if (requirePassword && (password == null || password.length() < 8)) {
+            return "Mật khẩu là bắt buộc và phải có ít nhất 8 ký tự.";
+        }
+        if (password != null && !password.isBlank() && (password.length() < 8 || password.length() > 255)) {
+            return "Mật khẩu mới phải có từ 8 đến 255 ký tự.";
+        }
+        if (phone != null && (phone.length() > 20 || (!phone.isBlank()
+                && (!phone.matches("\\+?[0-9][0-9 .()-]*")
+                    || !phone.replaceAll("[^0-9]", "").matches("[0-9]{7,15}"))))) {
+            return "Số điện thoại cần có 7–15 chữ số và tối đa 20 ký tự.";
+        }
+        return null;
     }
 }

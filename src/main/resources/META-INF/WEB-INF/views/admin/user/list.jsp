@@ -4,25 +4,25 @@
 <html lang="vi">
 <head><title>Quản lý người dùng</title></head>
 <body>
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h3">Quản lý người dùng</h1>
+<div class="page-container">
+    <div class="page-heading">
+        <div><p class="eyebrow">QUẢN TRỊ</p><h1>Quản lý người dùng</h1></div>
         <a class="btn btn-primary" href="${pageContext.request.contextPath}/admin/users/add">Thêm người dùng</a>
     </div>
     <c:if test="${not empty success}"><div class="alert alert-success"><c:out value="${success}"/></div></c:if>
     <c:if test="${not empty error}"><div class="alert alert-danger"><c:out value="${error}"/></div></c:if>
-    <form class="row g-2 mb-3" action="${pageContext.request.contextPath}/admin/users/searchpaginated" method="get">
-        <div class="col-auto"><input class="form-control" type="search" name="keyword" value="<c:out value='${keyword}'/>" placeholder="Username, họ tên hoặc email"></div>
+    <form class="admin-search" action="${pageContext.request.contextPath}/admin/users/searchpaginated" method="get">
+        <input class="form-control" type="search" name="keyword" value="<c:out value='${keyword}'/>" placeholder="Username, họ tên hoặc email" aria-label="Tìm kiếm người dùng">
         <input type="hidden" name="size" value="${pageSize}">
-        <div class="col-auto"><button class="btn btn-outline-primary" type="submit">Tìm kiếm</button></div>
+        <button class="btn btn-outline" type="submit">Tìm kiếm</button>
     </form>
     <c:choose>
         <c:when test="${empty userPage.content}">
             <div class="alert alert-info">Không có dữ liệu người dùng.</div>
         </c:when>
         <c:otherwise>
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped align-middle">
+            <div class="panel table-responsive">
+                <table class="table table-hover align-middle category-table">
                     <thead><tr><th>STT</th><th>Username</th><th>Họ tên</th><th>Email</th><th>Role</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
                     <tbody>
                     <c:forEach var="user" items="${userPage.content}" varStatus="status">
@@ -48,7 +48,7 @@
             </div>
         </c:otherwise>
     </c:choose>
-    <div class="d-flex justify-content-between align-items-center">
+    <div class="pagination-toolbar">
         <form action="${pageContext.request.contextPath}/admin/users/searchpaginated" method="get" class="d-flex align-items-center gap-2">
             <input type="hidden" name="keyword" value="<c:out value='${keyword}'/>">
             <label for="size">Số dòng:</label>
@@ -58,10 +58,10 @@
                 </c:forEach>
             </select>
         </form>
-        <nav><ul class="pagination mb-0">
+        <nav aria-label="Phân trang người dùng"><ul class="pagination mb-0">
             <c:forEach var="number" items="${pageNumbers}">
                 <li class="page-item ${number == currentPage ? 'active' : ''}">
-                    <a class="page-link" href="${pageContext.request.contextPath}/admin/users/searchpaginated?keyword=<c:out value='${keyword}'/>&page=${number}&size=${pageSize}">${number}</a>
+                    <a class="page-link" aria-current="${number == currentPage ? 'page' : ''}" href="${pageContext.request.contextPath}/admin/users/searchpaginated?keyword=<c:out value='${keyword}'/>&amp;page=${number}&amp;size=${pageSize}">${number}</a>
                 </li>
             </c:forEach>
         </ul></nav>
