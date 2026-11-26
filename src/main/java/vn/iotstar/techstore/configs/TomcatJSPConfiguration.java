@@ -1,6 +1,5 @@
 package vn.iotstar.techstore.configs;
 
-import org.apache.catalina.Context;
 import org.springframework.boot.tomcat.servlet.TomcatServletWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.annotation.Bean;

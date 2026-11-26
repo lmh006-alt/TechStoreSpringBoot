@@ -2,7 +2,6 @@ package vn.iotstar.techstore.configs;
 
 import org.sitemesh.config.ConfigurableSiteMeshFilter;
 import org.sitemesh.builder.SiteMeshFilterBuilder;
-import org.sitemesh.webapp.SiteMeshFilter;
 
 public class CustomSiteMeshFilter extends ConfigurableSiteMeshFilter {
     @Override

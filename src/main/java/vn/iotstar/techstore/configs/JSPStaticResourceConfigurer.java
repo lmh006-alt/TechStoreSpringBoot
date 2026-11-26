@@ -1,6 +1,6 @@
 package vn.iotstar.techstore.configs;
 
-import java.io.File;
+import java.io.IOException;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -31,7 +31,6 @@ public class JSPStaticResourceConfigurer implements LifecycleListener {
                     .getResource("classpath:/META-INF");
             URL url = resource.getURL();
             if (ResourceUtils.isFileURL(url)) {
-                File dir = resource.getFile();
                 context.getResources().createWebResourceSet(
                         WebResourceRoot.ResourceSetType.RESOURCE_JAR,
                         "/", url, "/META-INF");
@@ -46,7 +45,7 @@ public class JSPStaticResourceConfigurer implements LifecycleListener {
                             "/", jarFileUrl, "/META-INF");
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new IllegalStateException("Không thể đăng ký tài nguyên JSP trong META-INF", e);
         }
     }
